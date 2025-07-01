@@ -1,36 +1,14 @@
-use opencv::{core, imgcodecs, imgproc, objdetect, prelude::*, types};
+use opencv::{core, imgproc, prelude::*};
+use ort::{Session, Value};
 use serde::Serialize;
-use std::env;
-use std::fs::File;
-use std::path::Path;
-
-use ort::{Environment, SessionBuilder, Value};
-
-mod face;
-mod analysis;
-use crate::face::{analyze_face, FaceAttributes};
-use crate::analysis::{analyze_image, AnalysisResult};
-use std::io::Write;
 
 #[derive(Serialize)]
-struct FaceAttributes {
-    age: f32,
-    gender: String,
+pub struct FaceAttributes {
+    pub age: f32,
+    pub gender: String,
 }
 
-#[derive(Serialize)]
-struct FaceResult {
-    bbox: (i32, i32, i32, i32),
-    attributes: Option<FaceAttributes>,
-}
-
-#[derive(Serialize)]
-struct AnalysisResult {
-    faces: Vec<FaceResult>,
-}
-
-fn analyze_face(face_roi: &Mat, session: &ort::Session) -> Option<FaceAttributes> {
-    // Resize to 62x62
+pub fn analyze_face(face_roi: &Mat, session: &Session) -> Option<FaceAttributes> {
     let mut resized = Mat::default();
     imgproc::resize(
         face_roi,
@@ -40,20 +18,14 @@ fn analyze_face(face_roi: &Mat, session: &ort::Session) -> Option<FaceAttributes
         0.0,
         imgproc::INTER_LINEAR,
     ).ok()?;
-
-    // Convert to BGR (if not already)
     let mut bgr = Mat::default();
     if resized.channels() == 1 {
         imgproc::cvt_color(&resized, &mut bgr, imgproc::COLOR_GRAY2BGR, 0).ok()?;
     } else {
         bgr = resized;
     }
-
-    // Convert to float32 and normalize to [0,1]
     let mut bgr_f32 = Mat::default();
     bgr.convert_to(&mut bgr_f32, core::CV_32F, 1.0 / 255.0, 0.0).ok()?;
-
-    // HWC to CHW
     let mut chw = vec![0f32; 3 * 62 * 62];
     for c in 0..3 {
         for y in 0..62 {
@@ -63,19 +35,13 @@ fn analyze_face(face_roi: &Mat, session: &ort::Session) -> Option<FaceAttributes
             }
         }
     }
-
-    // Prepare input tensor
     let input_tensor = ort::Tensor::from_array(
         ndarray::Array4::from_shape_vec((1, 3, 62, 62), chw).ok()?
     );
-
-    // Run inference
     let outputs = session.run(vec![input_tensor]).ok()?;
     if outputs.len() != 2 {
         return None;
     }
-
-    // Parse outputs
     let age = if let Value::Tensor(age_tensor) = &outputs[0] {
         let age_val: f32 = *age_tensor.data::<f32>().ok()?.get(0)?;
         age_val * 100.0
@@ -92,22 +58,5 @@ fn analyze_face(face_roi: &Mat, session: &ort::Session) -> Option<FaceAttributes
     } else {
         return None;
     };
-
     Some(FaceAttributes { age, gender })
-}
-
-fn main() -> opencv::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: {} <image_path>", args[0]);
-        std::process::exit(1);
-    }
-    let image_path = &args[1];
-    let (img, analysis) = analyze_image(image_path)?;
-    opencv::imgcodecs::imwrite("images/output.jpg", &img, &opencv::types::VectorOfint::new())?;
-    let json = serde_json::to_string_pretty(&analysis).unwrap();
-    let mut file = File::create("output.json").unwrap();
-    file.write_all(json.as_bytes()).unwrap();
-    println!("Analysis complete. Results saved to images/output.jpg and output.json");
-    Ok(())
-}
+} 
