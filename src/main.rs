@@ -9,105 +9,51 @@ use ort::{Environment, SessionBuilder, Value};
 mod face;
 mod analysis;
 use crate::face::{analyze_face, FaceAttributes};
-use crate::analysis::{analyze_image, AnalysisResult};
+use crate::analysis::{analyze_image, AnalysisResult, FaceResult};
 use std::io::Write;
-
-#[derive(Serialize)]
-struct FaceAttributes {
-    age: f32,
-    gender: String,
-}
-
-#[derive(Serialize)]
-struct FaceResult {
-    bbox: (i32, i32, i32, i32),
-    attributes: Option<FaceAttributes>,
-}
-
-#[derive(Serialize)]
-struct AnalysisResult {
-    faces: Vec<FaceResult>,
-}
-
-fn analyze_face(face_roi: &Mat, session: &ort::Session) -> Option<FaceAttributes> {
-    // Resize to 62x62
-    let mut resized = Mat::default();
-    imgproc::resize(
-        face_roi,
-        &mut resized,
-        core::Size { width: 62, height: 62 },
-        0.0,
-        0.0,
-        imgproc::INTER_LINEAR,
-    ).ok()?;
-
-    // Convert to BGR (if not already)
-    let mut bgr = Mat::default();
-    if resized.channels() == 1 {
-        imgproc::cvt_color(&resized, &mut bgr, imgproc::COLOR_GRAY2BGR, 0).ok()?;
-    } else {
-        bgr = resized;
-    }
-
-    // Convert to float32 and normalize to [0,1]
-    let mut bgr_f32 = Mat::default();
-    bgr.convert_to(&mut bgr_f32, core::CV_32F, 1.0 / 255.0, 0.0).ok()?;
-
-    // HWC to CHW
-    let mut chw = vec![0f32; 3 * 62 * 62];
-    for c in 0..3 {
-        for y in 0..62 {
-            for x in 0..62 {
-                let val = *bgr_f32.at_2d::<core::Vec3f>(y, x).ok()?;
-                chw[c * 62 * 62 + y * 62 + x] = val[c];
-            }
-        }
-    }
-
-    // Prepare input tensor
-    let input_tensor = ort::Tensor::from_array(
-        ndarray::Array4::from_shape_vec((1, 3, 62, 62), chw).ok()?
-    );
-
-    // Run inference
-    let outputs = session.run(vec![input_tensor]).ok()?;
-    if outputs.len() != 2 {
-        return None;
-    }
-
-    // Parse outputs
-    let age = if let Value::Tensor(age_tensor) = &outputs[0] {
-        let age_val: f32 = *age_tensor.data::<f32>().ok()?.get(0)?;
-        age_val * 100.0
-    } else {
-        return None;
-    };
-    let gender = if let Value::Tensor(prob_tensor) = &outputs[1] {
-        let probs = prob_tensor.data::<f32>().ok()?;
-        if probs[0] > probs[1] {
-            "male"
-        } else {
-            "female"
-        }.to_string()
-    } else {
-        return None;
-    };
-
-    Some(FaceAttributes { age, gender })
-}
 
 fn main() -> opencv::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        eprintln!("Usage: {} <image_path>", args[0]);
+        eprintln!("Usage: {} <image_path> [output_image_path] [output_json_path]", args[0]);
         std::process::exit(1);
     }
     let image_path = &args[1];
-    let (img, analysis) = analyze_image(image_path)?;
-    opencv::imgcodecs::imwrite("images/output.jpg", &img, &opencv::types::VectorOfint::new())?;
-    let json = serde_json::to_string_pretty(&analysis).unwrap();
-    let mut file = File::create("output.json").unwrap();
-    file.write_all(json.as_bytes()).unwrap();
-    println!("Analysis complete. Results saved to images/output.jpg and output.json");
+    let output_image_path = args.get(2).map(|s| s.as_str()).unwrap_or("images/output.jpg");
+    let output_json_path = args.get(3).map(|s| s.as_str()).unwrap_or("output.json");
+
+    // Ensure output directory exists
+    if let Some(parent) = Path::new(output_image_path).parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                eprintln!("Failed to create output directory: {}", e);
+                opencv::Error::new(0, format!("Failed to create output directory: {}", e))
+            })?;
+        }
+    }
+
+    let (img, analysis) = match analyze_image(image_path) {
+        Ok(res) => res,
+        Err(e) => {
+            eprintln!("Failed to analyze image: {}", e);
+            std::process::exit(1);
+        }
+    };
+    if let Err(e) = opencv::imgcodecs::imwrite(output_image_path, &img, &opencv::types::VectorOfint::new()) {
+        eprintln!("Failed to write output image: {}", e);
+        std::process::exit(1);
+    }
+    let json = match serde_json::to_string_pretty(&analysis) {
+        Ok(j) => j,
+        Err(e) => {
+            eprintln!("Failed to serialize analysis result: {}", e);
+            std::process::exit(1);
+        }
+    };
+    if let Err(e) = File::create(output_json_path).and_then(|mut file| file.write_all(json.as_bytes())) {
+        eprintln!("Failed to write output JSON: {}", e);
+        std::process::exit(1);
+    }
+    println!("Analysis complete. Results saved to {} and {}", output_image_path, output_json_path);
     Ok(())
 }

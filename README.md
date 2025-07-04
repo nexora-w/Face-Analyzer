@@ -1,16 +1,43 @@
-# Image Analyze
+# Face Analyzer
 
-A Rust-based application for face detection and attribute analysis in images.  
-It uses OpenCV for face detection and ONNX Runtime for age and gender prediction.
-
----
+A Rust application for face detection and attribute analysis (age, gender) using OpenCV and ONNX Runtime.
 
 ## Features
+- Detects faces in images
+- Predicts age and gender for each detected face
+- Outputs annotated image and JSON results
+- Robust error handling and configurable output paths
 
-- Detects faces in images using Haar cascades (OpenCV).
-- Predicts age and gender for each detected face using an ONNX model.
-- Outputs an annotated image and a structured JSON file with results.
-- Modular, testable, and easy to extend.
+## Usage
+
+```
+cargo run --release -- <image_path> [output_image_path] [output_json_path]
+```
+- `<image_path>`: Path to the input image (required)
+- `[output_image_path]`: Path to save the annotated image (default: `images/output.jpg`)
+- `[output_json_path]`: Path to save the JSON results (default: `output.json`)
+
+Example:
+```
+cargo run --release -- input.jpg results/annotated.jpg results/analysis.json
+```
+
+## Dependencies
+- Rust
+- OpenCV (Rust crate and system library)
+- ort (ONNX Runtime)
+- serde, serde_json, ndarray
+
+## Output
+- Annotated image with detected faces
+- JSON file with bounding boxes and attributes for each face
+
+## Error Handling
+- The program prints user-friendly error messages for file, directory, and analysis errors.
+- Output directories are created automatically if they do not exist.
+
+## License
+See LICENSE file.
 
 ---
 
@@ -67,31 +94,6 @@ It uses OpenCV for face detection and ONNX Runtime for age and gender prediction
 
 ---
 
-## Usage
-
-Run the application with:
-
-```sh
-cargo run --release -- <image_path>
-```
-
-- Annotated image will be saved as `images/output.jpg`
-- JSON results will be saved as `output.json`
-
----
-
-## Example
-
-```sh
-cargo run --release -- images/sample.jpg
-```
-
-**Output:**
-- `images/output.jpg` (with rectangles around faces)
-- `output.json` (with age/gender predictions)
-
----
-
 ## Testing
 
 Run all tests with:
@@ -107,12 +109,6 @@ cargo test
 - **OpenCV errors:** Ensure OpenCV is installed and accessible to the Rust bindings.
 - **Model not found:** Make sure the required model files are in the correct directories.
 - **No faces detected:** Try with a clearer image or adjust the cascade parameters in the code.
-
----
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
