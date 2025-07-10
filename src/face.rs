@@ -1,11 +1,21 @@
 use opencv::{core, imgproc, prelude::*};
 use ort::{Session, Value};
 use serde::Serialize;
+use crate::attributes::{
+    emotion::{Emotion, EmotionPrediction},
+    landmarks::FacialLandmarks,
+    pose::PoseEstimation,
+    ethnicity::EthnicityPrediction,
+};
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct FaceAttributes {
     pub age: f32,
     pub gender: String,
+    pub emotion: Option<EmotionPrediction>,
+    pub landmarks: Option<FacialLandmarks>,
+    pub pose: Option<PoseEstimation>,
+    pub ethnicity: Option<EthnicityPrediction>,
 }
 
 pub fn analyze_face(face_roi: &Mat, session: &Session) -> Option<FaceAttributes> {
@@ -58,5 +68,19 @@ pub fn analyze_face(face_roi: &Mat, session: &Session) -> Option<FaceAttributes>
     } else {
         return None;
     };
-    Some(FaceAttributes { age, gender })
+
+    // TODO: Initialize and use the new attribute detectors
+    let emotion = None; // Will be implemented with EmotionDetector
+    let landmarks = None; // Will be implemented with LandmarkDetector
+    let pose = None; // Will be implemented with PoseEstimator
+    let ethnicity = None; // Will be implemented with EthnicityEstimator
+
+    Some(FaceAttributes {
+        age,
+        gender,
+        emotion,
+        landmarks,
+        pose,
+        ethnicity,
+    })
 } 
