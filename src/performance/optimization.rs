@@ -32,13 +32,11 @@ impl BatchProcessor {
         let num_batches = (total_images + self.batch_size - 1) / self.batch_size;
         let (tx, mut rx) = mpsc::channel(num_batches);
 
-        // Split images into batches
         let batches: Vec<_> = images
             .chunks(self.batch_size)
             .map(|chunk| chunk.to_vec())
             .collect();
 
-        // Process batches in parallel
         let processor = Arc::new(processor);
         let results = Arc::new(Mutex::new(vec![None; total_images]));
 
@@ -59,7 +57,6 @@ impl BatchProcessor {
                     })
                     .collect();
 
-                // Store results in order
                 let mut results = results.lock().unwrap();
                 for (idx, result) in batch_results {
                     if let Ok(result) = result {
@@ -71,12 +68,10 @@ impl BatchProcessor {
             });
         }
 
-        // Wait for all batches to complete
         for _ in 0..num_batches {
             rx.recv().await.ok_or_else(|| anyhow::anyhow!("Batch processing failed"))?;
         }
 
-        // Collect results
         let results = Arc::try_unwrap(results)
             .unwrap()
             .into_inner()
@@ -90,7 +85,6 @@ impl BatchProcessor {
 
     pub fn enable_gpu(&mut self) -> Result<()> {
         if !self.use_gpu {
-            // Check if CUDA is available
             if !core::has_cuda() {
                 return Err(anyhow::anyhow!("CUDA is not available"));
             }
@@ -133,31 +127,17 @@ impl ModelOptimizer {
     }
 
     pub fn optimize_model(&self, model_path: &str, output_path: &str) -> Result<()> {
-        // Load ONNX model
         let mut model = ort::SessionBuilder::new()?
             .with_model_from_file(model_path)?;
 
         if self.quantize {
-            // Implement model quantization
-            // This is a placeholder - actual implementation would depend on the specific
-            // quantization method and requirements
         }
 
         if self.use_tensorrt {
-            // Implement TensorRT optimization
-            // This is a placeholder - actual implementation would depend on TensorRT
-            // integration requirements
         }
 
         if self.use_fp16 {
-            // Implement FP16 conversion
-            // This is a placeholder - actual implementation would depend on the
-            // specific FP16 conversion requirements
         }
-
-        // Save optimized model
-        // This is a placeholder - actual implementation would depend on the
-        // model format and saving requirements
 
         Ok(())
     }
@@ -207,17 +187,14 @@ mod tests {
     async fn test_batch_processor() {
         let processor = BatchProcessor::new(2, 4, false);
         
-        // Create test images
         let images = vec![
             imgcodecs::imread("test1.jpg", imgcodecs::IMREAD_COLOR).unwrap(),
             imgcodecs::imread("test2.jpg", imgcodecs::IMREAD_COLOR).unwrap(),
             imgcodecs::imread("test3.jpg", imgcodecs::IMREAD_COLOR).unwrap(),
         ];
-
-        // Process images
+        
         let results = processor
             .process_images(images, |img| {
-                // Simple test processing
                 let mut gray = Mat::default();
                 opencv::imgproc::cvt_color(img, &mut gray, opencv::imgproc::COLOR_BGR2GRAY, 0)?;
                 Ok(gray)
@@ -233,17 +210,14 @@ mod tests {
         let mut cache = CacheManager::new(2);
         let mat = Mat::default();
 
-        // Add items
         cache.cache_result("key1".to_string(), mat.clone());
         cache.cache_result("key2".to_string(), mat.clone());
         cache.cache_result("key3".to_string(), mat.clone());
 
-        // Check LRU behavior
         assert!(cache.get_cached_result("key1").is_none());
         assert!(cache.get_cached_result("key2").is_some());
         assert!(cache.get_cached_result("key3").is_some());
 
-        // Resize cache
         cache.resize_cache(3);
         cache.cache_result("key4".to_string(), mat.clone());
         assert!(cache.get_cached_result("key2").is_some());

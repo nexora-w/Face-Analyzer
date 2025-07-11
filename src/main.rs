@@ -30,7 +30,6 @@ fn main() -> opencv::Result<()> {
         std::process::exit(0);
     }
 
-    // Batch mode
     if args[1] == "--batch" && args.len() >= 3 {
         let input_dir = &args[2];
         let annotated_dir = Path::new("batch_output/annotated");
@@ -105,7 +104,6 @@ fn main() -> opencv::Result<()> {
         return Ok(());
     }
 
-    // Single image mode (default)
     let image_path = &args[1];
     let output_image_path = args.get(2).map(|s| s.as_str()).unwrap_or("images/output.jpg");
     let output_json_path = args.get(3).map(|s| s.as_str()).unwrap_or("output.json");

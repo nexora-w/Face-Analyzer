@@ -36,23 +36,19 @@ impl EmbeddingGenerator {
 
         Ok(Self {
             session,
-            embedding_size: 512, // Typical size for face embeddings
+            embedding_size: 512,
         })
     }
 
     pub fn generate(&self, face_mat: &Mat) -> Result<Vec<f32>> {
-        // Preprocess image
         let processed_tensor = self.preprocess_image(face_mat)?;
         
-        // Run inference
         let outputs = self.session.run(vec![processed_tensor])?;
         
-        // Post-process results
         self.postprocess_output(&outputs)
     }
 
     fn preprocess_image(&self, face_mat: &Mat) -> Result<ort::Tensor<f32>> {
-        // Resize to required dimensions (typically 112x112 for face recognition)
         let mut resized = Mat::default();
         opencv::imgproc::resize(
             face_mat,
@@ -63,11 +59,9 @@ impl EmbeddingGenerator {
             opencv::imgproc::INTER_LINEAR,
         )?;
 
-        // Convert to float32 and normalize
         let mut float_mat = Mat::default();
         resized.convert_to(&mut float_mat, core::CV_32F, 1.0/255.0, 0.0)?;
 
-        // Convert to NCHW format
         let mut tensor_data = vec![0f32; 1 * 3 * 112 * 112];
         for y in 0..112 {
             for x in 0..112 {
@@ -90,7 +84,6 @@ impl EmbeddingGenerator {
                 return Err(anyhow::anyhow!("Unexpected embedding size"));
             }
             
-            // L2 normalize the embedding
             let mut sum_squares = 0.0;
             for &x in embedding.iter() {
                 sum_squares += x * x;
@@ -148,7 +141,6 @@ impl EmbeddingComparator {
             }
         }
         
-        // Sort by similarity score in descending order
         matches.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
         matches
     }

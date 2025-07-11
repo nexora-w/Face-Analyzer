@@ -1,127 +1,207 @@
 # Face Analyzer
 
-A Rust application for face detection and attribute analysis (age, gender) using OpenCV and ONNX Runtime.
+A comprehensive Rust-based face analysis system with advanced features including real-time processing, database integration, and web interface. Built with OpenCV, ONNX Runtime, and modern web technologies.
 
-## Features
-- Detects faces in images
-- Predicts age and gender for each detected face
-- Outputs annotated image and JSON results
-- Robust error handling and configurable output paths
+## Core Features
 
-## Usage
+### Face Analysis
+- Advanced face detection with multiple algorithms (Haar Cascade, MTCNN, RetinaFace)
+- Facial attribute analysis:
+  - Basic: Age, gender
+  - Enhanced: Emotions, facial landmarks, pose estimation, ethnicity
+- Face quality assessment
+- Image preprocessing (brightness, contrast adjustment)
+- Face anonymization options (blur, pixelate, blackout, emoji)
 
-```
-cargo run --release -- <image_path> [output_image_path] [output_json_path]
-```
-- `<image_path>`: Path to the input image (required)
-- `[output_image_path]`: Path to save the annotated image (default: `images/output.jpg`)
-- `[output_json_path]`: Path to save the JSON results (default: `output.json`)
+### Real-time Processing
+- Webcam support via OpenCV VideoCapture
+- Video file processing
+- Real-time visualization
+- Progress tracking for batch operations
 
-Example:
-```
-cargo run --release -- input.jpg results/annotated.jpg results/analysis.json
-```
+### Database Integration
+- Face embedding generation for recognition
+- Face similarity comparison
+- PostgreSQL integration for face data storage
+- Efficient metadata management and querying
+
+### Output and Reporting
+- HTML report generation with customizable templates
+- CSV export functionality
+- Base64 image encoding
+- Responsive grid layout for face displays
+- Progress tracking for batch operations
+
+### API and Integration
+- RESTful API using actix-web
+- WebSocket support for real-time updates
+- File upload handling with multipart
+- CORS support
+- Docker containerization
+
+### Web Interface
+- Modern UI built with Yew framework
+- Responsive design with CSS Grid
+- Real-time updates via WebSocket
+- Configuration interface
+- Result visualization dashboard
+
+### Security Features
+- Face anonymization options
+- AES-GCM encryption for sensitive data
+- Secure storage with salt and key derivation
+- Access control for API endpoints
+
+### Performance Optimizations
+- GPU acceleration support
+- Multi-threaded batch processing
+- Model optimization (quantization, TensorRT)
+- LRU caching for results
 
 ## Dependencies
-- Rust
-- OpenCV (Rust crate and system library)
-- ort (ONNX Runtime)
-- serde, serde_json, ndarray
+- Rust (edition 2021 or later)
+- OpenCV (with Rust bindings)
+- ONNX Runtime
+- PostgreSQL
+- Additional dependencies in Cargo.toml
 
-## Output
-- Annotated image with detected faces
-- JSON file with bounding boxes and attributes for each face
+## Quick Start
 
-## Error Handling
-- The program prints user-friendly error messages for file, directory, and analysis errors.
-- Output directories are created automatically if they do not exist.
+1. **Clone and Setup:**
+   ```sh
+   git clone https://github.com/nexora-w/Face-Analyzer
+   cd Face-Analyzer
+   cargo build --release
+   ```
 
-## License
-See LICENSE file.
+2. **Configure Database:**
+   ```sh
+   # Set environment variables
+   export DATABASE_URL="postgresql://user:password@localhost/face_analyzer"
+   
+   # Run migrations
+   cargo run --bin migrations
+   ```
 
----
+3. **Start Services:**
+   ```sh
+   # Start the API server
+   cargo run --bin api-server
+   
+   # In another terminal, start the web interface
+   cargo run --bin web-ui
+   ```
+
+4. **Access the Application:**
+   - Web Interface: http://localhost:8080
+   - API Documentation: http://localhost:3000/docs
+
+## Usage Modes
+
+### Command Line Interface
+```sh
+cargo run --release -- [OPTIONS] <COMMAND>
+
+Commands:
+  analyze    Analyze single image
+  batch      Process multiple images
+  video      Process video file
+  webcam     Real-time webcam analysis
+  server     Start API server
+```
+
+### Web Interface
+Navigate to http://localhost:8080 to access the web dashboard featuring:
+- Live webcam processing
+- Batch upload interface
+- Analysis results viewer
+- Configuration panel
+- Real-time updates
+
+### API Integration
+```sh
+# Example: Analyze an image via API
+curl -X POST http://localhost:3000/api/v1/analyze \
+  -F "image=@path/to/image.jpg" \
+  -H "Authorization: Bearer <token>"
+```
 
 ## Project Structure
 
 ```
 .
-├── src/              # Rust source code
-│   ├── main.rs       # Entry point, minimal orchestration
-│   ├── lib.rs        # Library root, exposes modules
-│   ├── face.rs       # Face attribute analysis logic
-│   └── analysis.rs   # Image analysis and result struct
-├── tests/            # Integration tests
-├── images/           # Input and output images
-├── models/           # Model files (e.g., ONNX)
-├── haarcascades/     # Haar cascade files for face detection
-├── scripts/          # Utility scripts (e.g., data download)
-├── Cargo.toml        # Rust package manifest
-├── README.md         # Project documentation
+├── src/
+│   ├── main.rs           # CLI entry point
+│   ├── lib.rs            # Library root
+│   ├── face.rs           # Face analysis core
+│   ├── analysis.rs       # Image processing
+│   ├── api/              # REST API implementation
+│   ├── db/               # Database operations
+│   ├── web/              # Web interface (Yew)
+│   └── security/         # Security features
+├── migrations/           # Database migrations
+├── tests/               # Test suite
+├── frontend/            # Web UI assets
+├── scripts/            # Utility scripts
+└── docker/             # Docker configuration
 ```
 
----
+## Configuration
 
-## Requirements
+The system can be configured via:
+- Environment variables
+- Configuration file (config.toml)
+- Web interface settings
+- API endpoints
 
-- Rust (edition 2021 or later)
-- OpenCV (with Rust bindings)
-- ONNX Runtime (via the `ort` crate)
-- Download required models:
-  - Haar cascade: `haarcascades/haarcascade_frontalface_default.xml`
-  - ONNX model: `models/face_attributes.onnx`
-
----
-
-## Setup
-
-1. **Clone this repository:**
-   ```sh
-   git clone https://github.com/nexora-w/Face-Analyzer
-   cd Face-Analyzer
-   ```
-
-2. **Install dependencies:**
-   ```sh
-   cargo build --release
-   ```
-
-3. **Download models:**
-   - [Haar Cascade](https://github.com/opencv/opencv/blob/master/data/haarcascades/haarcascade_frontalface_default.xml)
-   - [Example ONNX Model](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/age-gender-recognition-retail-0013/description/age-gender-recognition-retail-0013.md)
-   - Place them in `haarcascades/` and `models/` respectively.
-
-4. **Add input images to `images/`**
-
----
+Key configuration options include:
+- Database connection
+- API security settings
+- Processing parameters
+- Model selection
+- Output formatting
 
 ## Testing
 
-Run all tests with:
-
 ```sh
+# Run all tests
 cargo test
+
+# Run specific test suites
+cargo test --test integration
+cargo test --test api
+cargo test --test web
 ```
 
----
+## Security Considerations
 
-## Troubleshooting
+- API authentication required
+- Data encryption at rest
+- Secure WebSocket connections
+- Face data privacy options
+- Access control levels
 
-- **OpenCV errors:** Ensure OpenCV is installed and accessible to the Rust bindings.
-- **Model not found:** Make sure the required model files are in the correct directories.
-- **No faces detected:** Try with a clearer image or adjust the cascade parameters in the code.
+## Performance Tuning
 
----
+- GPU acceleration available
+- Batch processing optimization
+- Caching configuration
+- Database indexing
+- Model quantization options
 
 ## Contributing
 
-Contributions are welcome! Please open issues or submit pull requests for improvements.
+Contributions welcome! Please check our contributing guidelines and open issues or pull requests.
 
----
+## License
+
+See LICENSE file.
 
 ## Acknowledgements
 
-- [OpenCV](https://opencv.org/)
-- [ONNX Runtime](https://onnxruntime.ai/)
-- [Rust](https://www.rust-lang.org/)
-
-For more details, see comments in the code and each module. 
+- OpenCV
+- ONNX Runtime
+- Rust
+- Yew Framework
+- PostgreSQL
+- Actix Web
