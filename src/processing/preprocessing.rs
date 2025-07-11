@@ -43,15 +43,19 @@ impl ImagePreprocessor {
     pub fn process(&self, image: &Mat) -> Result<Mat> {
         let mut processed = image.clone();
 
+        // Convert to floating point for processing
         let mut float_img = Mat::default();
         image.convert_to(&mut float_img, core::CV_32F, 1.0, 0.0)?;
 
+        // Apply brightness and contrast adjustments
         if self.config.brightness != 0.0 || self.config.contrast != 1.0 {
             self.adjust_brightness_contrast(&mut float_img)?;
         }
 
+        // Convert back to 8-bit
         float_img.convert_to(&mut processed, core::CV_8U, 255.0, 0.0)?;
 
+        // Apply Gaussian blur if specified
         if self.config.blur_size > 1 {
             let mut blurred = Mat::default();
             imgproc::gaussian_blur(
@@ -65,20 +69,24 @@ impl ImagePreprocessor {
             processed = blurred;
         }
 
+        // Apply sharpening if enabled
         if self.config.sharpen {
             processed = self.apply_sharpening(&processed)?;
         }
 
+        // Apply histogram equalization if enabled
         if self.config.equalize {
             processed = self.apply_equalization(&processed)?;
         }
 
+        // Apply denoising if enabled
         if self.config.denoise {
             let mut denoised = Mat::default();
             core::fast_nl_means_denoising(&processed, &mut denoised, 3.0, 7, 21)?;
             processed = denoised;
         }
 
+        // Apply normalization if enabled
         if self.config.normalize {
             let mut normalized = Mat::default();
             core::normalize(&processed, &mut normalized, 0.0, 255.0, core::NORM_MINMAX, core::CV_8U, &core::no_array())?;
@@ -89,9 +97,11 @@ impl ImagePreprocessor {
     }
 
     fn adjust_brightness_contrast(&self, image: &mut Mat) -> Result<()> {
+        // alpha = contrast, beta = brightness
         let alpha = self.config.contrast;
         let beta = self.config.brightness * 127.0;
 
+        // Apply: new_image = alpha * image + beta
         core::add_weighted(
             image,
             alpha,
@@ -130,8 +140,10 @@ impl ImagePreprocessor {
         let mut equalized = Mat::default();
 
         if image.channels() == 1 {
+            // For grayscale images
             imgproc::equalize_hist(image, &mut equalized)?;
         } else {
+            // For color images, convert to LAB color space and equalize L channel
             let mut lab = Mat::default();
             imgproc::cvt_color(image, &mut lab, imgproc::COLOR_BGR2Lab, 0)?;
 
@@ -148,20 +160,26 @@ impl ImagePreprocessor {
     }
 
     pub fn auto_adjust(&mut self, image: &Mat) -> Result<()> {
+        // Automatically determine preprocessing parameters based on image statistics
+        
+        // Calculate image statistics
         let mut mean = core::Scalar::default();
         let mut stddev = core::Scalar::default();
         core::mean_std_dev(image, &mut mean, &mut stddev, &core::no_array())?;
-        
+
+        // Adjust brightness based on mean intensity
         let target_mean = 127.0;
         self.config.brightness = (target_mean - mean[0]) / 255.0;
 
+        // Adjust contrast based on standard deviation
         let target_stddev = 64.0;
         self.config.contrast = target_stddev / stddev[0];
         self.config.contrast = self.config.contrast.clamp(0.5, 2.0);
 
-        self.config.denoise = stddev[0] < 30.0;
-        self.config.sharpen = mean[0] > 100.0;
-        self.config.equalize = stddev[0] < 50.0;
+        // Enable/disable other features based on image quality
+        self.config.denoise = stddev[0] < 30.0;  // Enable denoising for low-variance images
+        self.config.sharpen = mean[0] > 100.0;   // Enable sharpening for brighter images
+        self.config.equalize = stddev[0] < 50.0; // Enable equalization for low-contrast images
 
         Ok(())
     }

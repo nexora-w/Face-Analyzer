@@ -71,24 +71,27 @@ pub struct QualityAssessor {
 impl Default for QualityAssessor {
     fn default() -> Self {
         Self {
-            min_face_size: 0.1,
-            max_angle: 30.0,
+            min_face_size: 0.1,  // Face should be at least 10% of image size
+            max_angle: 30.0,     // Maximum 30 degrees deviation from frontal
         }
     }
 }
 
 impl QualityAssessor {
     pub fn assess_quality(&self, face_mat: &Mat, face_rect: &core::Rect) -> Result<QualityMetrics> {
+        // Calculate basic image statistics
         let brightness = self.calculate_brightness(face_mat)?;
         let contrast = self.calculate_contrast(face_mat)?;
         let sharpness = self.calculate_sharpness(face_mat)?;
         let blur_score = self.calculate_blur_score(face_mat)?;
         
+        // Calculate face-specific metrics
         let face_size = self.calculate_relative_face_size(face_rect, face_mat)?;
         let face_angle = self.estimate_face_angle(face_mat)?;
         let occlusion = self.estimate_occlusion(face_mat)?;
         let symmetry = self.calculate_symmetry(face_mat)?;
 
+        // Calculate overall quality score
         let overall_score = self.calculate_overall_score(
             &[
                 brightness,
@@ -178,10 +181,12 @@ impl QualityAssessor {
     }
 
     fn estimate_face_angle(&self, _image: &Mat) -> Result<f32> {
+        // TODO: Implement proper face angle estimation using landmarks or pose estimation
         Ok(0.0)
     }
 
     fn estimate_occlusion(&self, _image: &Mat) -> Result<f32> {
+        // TODO: Implement proper occlusion detection using facial landmarks or segmentation
         Ok(0.0)
     }
 
@@ -200,6 +205,7 @@ impl QualityAssessor {
     }
 
     fn calculate_overall_score(&self, metrics: &[f32]) -> f32 {
+        // Weighted average of all metrics
         let weights = [0.15, 0.15, 0.15, 0.15, 0.1, 0.1, 0.1, 0.1];
         let mut weighted_sum = 0.0;
         let mut weight_sum = 0.0;

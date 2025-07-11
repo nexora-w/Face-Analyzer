@@ -103,6 +103,7 @@ impl VideoProcessor {
         let mut frame_count = 0;
 
         while *running.lock().unwrap() && frame_count < total_frames {
+            // Maintain target frame rate if specified
             if let Some(target_time) = self.frame_time {
                 let elapsed = last_frame_time.elapsed();
                 if elapsed < target_time {
@@ -111,6 +112,7 @@ impl VideoProcessor {
                 last_frame_time = Instant::now();
             }
 
+            // Read frame
             let mut frame = Mat::default();
             if !self.capture.read(&mut frame)? {
                 break;
@@ -120,6 +122,7 @@ impl VideoProcessor {
                 continue;
             }
 
+            // Resize if needed
             if let (Some(width), Some(height)) = (self.config.resize_width, self.config.resize_height) {
                 let mut resized = Mat::default();
                 opencv::imgproc::resize(
@@ -133,6 +136,7 @@ impl VideoProcessor {
                 frame = resized;
             }
 
+            // Send frame through channel
             if tx.try_send(frame).is_err() {
                 println!("Frame processing is too slow, dropping frame");
             }
@@ -166,7 +170,7 @@ mod tests {
     fn create_dummy_video() -> std::path::PathBuf {
         let path = std::env::temp_dir().join("test_video.mp4");
         let mut file = File::create(&path).unwrap();
-        file.write_all(&[0; 1024]).unwrap();
+        file.write_all(&[0; 1024]).unwrap(); // Write dummy data
         path
     }
 
@@ -186,6 +190,7 @@ mod tests {
         let config = VideoConfig::default();
         let result = VideoProcessor::new(&video_path, config);
         std::fs::remove_file(video_path).unwrap();
+        // This will fail because it's not a real video file
         assert!(result.is_err());
     }
 } 
