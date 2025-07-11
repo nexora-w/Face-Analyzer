@@ -69,11 +69,10 @@ pub fn analyze_face(face_roi: &Mat, session: &Session) -> Option<FaceAttributes>
         return None;
     };
 
-    // TODO: Initialize and use the new attribute detectors
-    let emotion = None; // Will be implemented with EmotionDetector
-    let landmarks = None; // Will be implemented with LandmarkDetector
-    let pose = None; // Will be implemented with PoseEstimator
-    let ethnicity = None; // Will be implemented with EthnicityEstimator
+    let emotion = None;
+    let landmarks = None;
+    let pose = None;
+    let ethnicity = None;
 
     Some(FaceAttributes {
         age,

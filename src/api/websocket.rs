@@ -9,7 +9,6 @@ use uuid::Uuid;
 
 use crate::database::embeddings::FaceEmbedding;
 
-// WebSocket messages
 #[derive(Message, Serialize, Deserialize)]
 #[rtype(result = "()")]
 pub enum WsMessage {
@@ -19,7 +18,6 @@ pub enum WsMessage {
     Error(String),
 }
 
-// WebSocket connection actor
 pub struct WsConnection {
     id: String,
     tx: broadcast::Sender<WsMessage>,
@@ -29,11 +27,9 @@ impl Actor for WsConnection {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        // Subscribe to broadcast channel
         let mut rx = self.tx.subscribe();
         let addr = ctx.address();
 
-        // Handle incoming broadcast messages
         actix_web::rt::spawn(async move {
             while let Ok(msg) = rx.recv().await {
                 addr.do_send(msg);
@@ -47,7 +43,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsConnection {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Text(text)) => {
-                // Handle incoming text messages if needed
                 println!("Received message: {}", text);
             }
             Ok(ws::Message::Close(reason)) => {
@@ -63,14 +58,12 @@ impl Handler<WsMessage> for WsConnection {
     type Result = ();
 
     fn handle(&mut self, msg: WsMessage, ctx: &mut Self::Context) {
-        // Serialize and send message to client
         if let Ok(data) = serde_json::to_string(&msg) {
             ctx.text(data);
         }
     }
 }
 
-// WebSocket manager
 pub struct WsManager {
     connections: HashMap<String, broadcast::Sender<WsMessage>>,
 }
@@ -100,7 +93,6 @@ impl WsManager {
     }
 }
 
-// WebSocket route handler
 pub async fn ws_handler(
     req: HttpRequest,
     stream: web::Payload,
@@ -114,7 +106,6 @@ pub async fn ws_handler(
     Ok(resp)
 }
 
-// Notification helper functions
 pub async fn notify_face_detected(
     manager: &Arc<tokio::sync::Mutex<WsManager>>,
     face: FaceEmbedding,

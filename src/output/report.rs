@@ -21,7 +21,7 @@ struct FaceReportEntry {
     tags: Vec<String>,
     timestamp: chrono::DateTime<chrono::Utc>,
     confidence: f32,
-    image_data: String, // Base64 encoded image
+    image_data: String,
 }
 
 pub struct ReportGenerator {
@@ -38,10 +38,8 @@ impl ReportGenerator {
         faces: &[FaceEmbedding],
         title: &str,
     ) -> Result<String> {
-        // Create output directory if it doesn't exist
         fs::create_dir_all(&self.output_dir).await?;
 
-        // Convert faces to report entries with base64 encoded images
         let mut report_entries = Vec::new();
         for face in faces {
             let image_data = Self::load_image_as_base64(&face.metadata.source_image)?;
@@ -55,7 +53,6 @@ impl ReportGenerator {
             });
         }
 
-        // Generate HTML using template
         let template = FaceReportTemplate {
             title,
             faces: &report_entries,
@@ -64,7 +61,6 @@ impl ReportGenerator {
 
         let html = template.render()?;
 
-        // Write HTML to file
         let file_name = format!(
             "face_report_{}.html",
             chrono::Utc::now().format("%Y%m%d_%H%M%S")
@@ -80,10 +76,8 @@ impl ReportGenerator {
         faces: &[FaceEmbedding],
         include_embeddings: bool,
     ) -> Result<String> {
-        // Create output directory if it doesn't exist
         fs::create_dir_all(&self.output_dir).await?;
 
-        // Create CSV file
         let file_name = format!(
             "face_export_{}.csv",
             chrono::Utc::now().format("%Y%m%d_%H%M%S")
@@ -92,7 +86,6 @@ impl ReportGenerator {
         
         let mut writer = Writer::from_path(&file_path)?;
 
-        // Write header
         let mut headers = vec![
             "face_id",
             "name",
@@ -106,7 +99,6 @@ impl ReportGenerator {
         }
         writer.write_record(headers)?;
 
-        // Write data
         for face in faces {
             let mut record = vec![
                 face.face_id.clone(),
@@ -145,7 +137,6 @@ impl ReportGenerator {
     }
 }
 
-// Template for the HTML report
 const REPORT_TEMPLATE: &str = r#"
 <!DOCTYPE html>
 <html lang="en">

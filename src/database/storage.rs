@@ -34,10 +34,8 @@ impl Database {
             .connect(&config.connection_string)
             .await?;
 
-        // Ensure the database schema exists
         Self::initialize_schema(&pool).await?;
 
-        // Ensure image storage directory exists
         fs::create_dir_all(&config.image_storage_path).await?;
 
         Ok(Self { pool, config })
@@ -65,14 +63,12 @@ impl Database {
     }
 
     pub async fn store_face(&self, face: FaceEmbedding) -> Result<()> {
-        // Copy the source image to storage
         let image_path = Path::new(&face.metadata.source_image);
         let file_name = format!("{}.jpg", face.face_id);
         let storage_path = Path::new(&self.config.image_storage_path).join(&file_name);
         
         fs::copy(image_path, &storage_path).await?;
 
-        // Store face data in database
         sqlx::query!(
             r#"
             INSERT INTO faces (
@@ -194,7 +190,6 @@ impl Database {
             params.push(confidence.to_string());
         }
 
-        // Remove trailing comma
         sql.pop();
         sql.push_str(" WHERE id = $4");
 
@@ -210,7 +205,6 @@ impl Database {
     }
 
     pub async fn delete_face(&self, face_id: &str) -> Result<()> {
-        // Get the face record to find the image path
         let record = sqlx::query!(
             r#"
             SELECT source_image FROM faces WHERE id = $1
@@ -221,13 +215,11 @@ impl Database {
         .await?;
 
         if let Some(record) = record {
-            // Delete the image file
             if let Err(e) = fs::remove_file(&record.source_image).await {
                 eprintln!("Failed to delete image file: {}", e);
             }
         }
 
-        // Delete the database record
         sqlx::query!(
             r#"
             DELETE FROM faces WHERE id = $1
@@ -254,7 +246,6 @@ impl Database {
         .fetch_all(&self.pool)
         .await?;
 
-        // Delete associated image files
         for record in &records {
             if let Err(e) = fs::remove_file(&record.source_image).await {
                 eprintln!("Failed to delete image file: {}", e);

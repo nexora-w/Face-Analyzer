@@ -37,29 +37,18 @@ impl EmotionDetector {
     }
 
     pub fn detect(&self, face_mat: &Mat) -> Result<EmotionPrediction> {
-        // Preprocess image
         let processed_tensor = self.preprocess_image(face_mat)?;
         
-        // Run inference
         let outputs = self.session.run(vec![processed_tensor])?;
         
-        // Post-process results
         self.postprocess_output(&outputs)
     }
 
     fn preprocess_image(&self, face_mat: &Mat) -> Result<ort::Tensor<f32>> {
-        // TODO: Implement proper image preprocessing for emotion detection
-        // 1. Resize to required dimensions
-        // 2. Normalize pixel values
-        // 3. Convert to tensor format
         unimplemented!("Image preprocessing for emotion detection")
     }
 
     fn postprocess_output(&self, outputs: &[Value]) -> Result<EmotionPrediction> {
-        // TODO: Implement proper output processing
-        // 1. Extract probabilities
-        // 2. Find highest confidence emotion
-        // 3. Return prediction with confidence
         unimplemented!("Output processing for emotion detection")
     }
 } 

@@ -70,7 +70,6 @@ impl ApiServer {
     }
 
     pub async fn run(&self) -> Result<()> {
-        // Ensure upload directory exists
         fs::create_dir_all(&self.config.upload_dir).await?;
 
         let database = web::Data::new(self.database.clone());
@@ -81,7 +80,6 @@ impl ApiServer {
         HttpServer::new(move || {
             let cors = Cors::default()
                 .allowed_origin_fn(|origin, _req_head| {
-                    // Add your CORS validation logic here
                     true
                 })
                 .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
@@ -120,27 +118,23 @@ async fn analyze_image(
     embedding_generator: web::Data<EmbeddingGenerator>,
     upload_dir: web::Data<String>,
 ) -> impl Responder {
-    // Process multipart form data
     if let Ok(Some(mut field)) = payload.try_next().await {
         let content_type = field.content_disposition().unwrap();
         let filename = content_type.get_filename().unwrap();
         let file_id = Uuid::new_v4();
         let file_path = Path::new(&**upload_dir).join(file_id.to_string());
 
-        // Save uploaded file
         let mut f = web::block(|| std::fs::File::create(file_path.clone())).await.unwrap();
         while let Some(chunk) = field.next().await {
             let data = chunk.unwrap();
             f = web::block(move || f.write_all(&data).map(|_| f)).await.unwrap();
         }
 
-        // Generate embedding
         let embedding = match embedding_generator.generate(&file_path.to_string_lossy()) {
             Ok(emb) => emb,
             Err(e) => return HttpResponse::BadRequest().json(format!("Failed to generate embedding: {}", e)),
         };
 
-        // Create face record
         let face = FaceEmbedding {
             face_id: file_id.to_string(),
             embedding,
@@ -153,12 +147,10 @@ async fn analyze_image(
             },
         };
 
-        // Store in database
         if let Err(e) = database.store_face(face.clone()).await {
             return HttpResponse::InternalServerError().json(format!("Failed to store face: {}", e));
         }
 
-        // Prepare response
         let response = AnalyzeResponse {
             face_id: face.face_id,
             name: face.metadata.name,
@@ -259,13 +251,11 @@ async fn generate_html_report(
     database: web::Data<Database>,
     report_generator: web::Data<ReportGenerator>,
 ) -> impl Responder {
-    // Get all faces
     let faces = match database.search_faces(&Default::default()).await {
         Ok(faces) => faces,
         Err(e) => return HttpResponse::InternalServerError().json(format!("Failed to get faces: {}", e)),
     };
 
-    // Generate report
     match report_generator.generate_html_report(&faces, "Face Analysis Report").await {
         Ok(path) => HttpResponse::Ok().json(path),
         Err(e) => HttpResponse::InternalServerError().json(format!("Failed to generate report: {}", e)),
@@ -277,13 +267,11 @@ async fn export_csv(
     database: web::Data<Database>,
     report_generator: web::Data<ReportGenerator>,
 ) -> impl Responder {
-    // Get all faces
     let faces = match database.search_faces(&Default::default()).await {
         Ok(faces) => faces,
         Err(e) => return HttpResponse::InternalServerError().json(format!("Failed to get faces: {}", e)),
     };
 
-    // Generate CSV
     match report_generator
         .export_csv(&faces, query.include_embeddings.unwrap_or(false))
         .await
