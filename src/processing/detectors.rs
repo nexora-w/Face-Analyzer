@@ -75,17 +75,19 @@ impl FaceDetector {
 
         Ok(faces.iter().map(|rect| DetectionResult {
             bbox: rect,
-            confidence: 1.0,
+            confidence: 1.0, // Haar cascade doesn't provide confidence scores
             landmarks: None,
         }).collect())
     }
 
     fn detect_dnn(&self, image: &Mat) -> Result<Vec<DetectionResult>> {
+        // Load DNN model (e.g., ResNet SSD)
         let model_path = "models/res10_300x300_ssd_iter_140000.caffemodel";
         let config_path = "models/deploy.prototxt";
 
         let net = dnn::read_net_from_caffe(config_path, model_path)?;
         
+        // Prepare input blob
         let blob = dnn::blob_from_image(
             image,
             1.0,
@@ -95,9 +97,11 @@ impl FaceDetector {
             false,
         )?;
 
+        // Set input and forward pass
         net.set_input(&blob, "", 1.0, core::Scalar::default())?;
         let detections = net.forward("detection_out", &mut VectorOfMat::new())?;
 
+        // Process detections
         let mut results = Vec::new();
         let detection_mat = detections.try_as_mat()?;
         let num_detections = detection_mat.rows();
@@ -129,10 +133,14 @@ impl FaceDetector {
     }
 
     fn detect_mtcnn(&self, _image: &Mat) -> Result<Vec<DetectionResult>> {
+        // TODO: Implement MTCNN detection
+        // This requires implementing or integrating the MTCNN model
         unimplemented!("MTCNN detection not yet implemented")
     }
 
     fn detect_retinaface(&self, _image: &Mat) -> Result<Vec<DetectionResult>> {
+        // TODO: Implement RetinaFace detection
+        // This requires implementing or integrating the RetinaFace model
         unimplemented!("RetinaFace detection not yet implemented")
     }
 }
@@ -146,6 +154,7 @@ impl DetectorFactory {
         min_face_size: Option<core::Size>,
         scale_factor: Option<f32>,
     ) -> Result<FaceDetector> {
+        // Check if required model files exist
         match detector_type {
             DetectorType::Haar => {
                 let cascade_path = Path::new("haarcascades/haarcascade_frontalface_default.xml");
@@ -161,8 +170,10 @@ impl DetectorFactory {
                 }
             }
             DetectorType::MTCNN => {
+                // TODO: Add MTCNN model file checks
             }
             DetectorType::RetinaFace => {
+                // TODO: Add RetinaFace model file checks
             }
         }
 
